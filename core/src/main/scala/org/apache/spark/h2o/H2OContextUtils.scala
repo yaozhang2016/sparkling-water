@@ -23,7 +23,8 @@ import java.net.InetAddress
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.scheduler.local.LocalBackend
 import org.apache.spark.scheduler.{SparkListenerBlockManagerAdded, SparkListenerBlockManagerRemoved}
-import org.apache.spark.{Accumulable, SparkConf, SparkContext, SparkEnv}
+import org.apache.spark.{Accumulable, SparkContext, SparkEnv}
+import org.apache.spark.internal.Logging
 import water.H2OStarter
 import water.init.AbstractEmbeddedH2OConfig
 
@@ -243,7 +244,7 @@ private[spark] object H2OContextUtils {
  */
 private class SparklingWaterConfig(val flatfileBVariable: Accumulable[mutable.HashSet[NodeDesc], NodeDesc],
                                    val sparkHostname: Option[String])
-  extends AbstractEmbeddedH2OConfig with org.apache.spark.Logging {
+  extends AbstractEmbeddedH2OConfig with Logging {
 
   /** String containing a flatfile string filled asynchroniously by different thread. */
   @volatile var flatFile:Option[String] = None

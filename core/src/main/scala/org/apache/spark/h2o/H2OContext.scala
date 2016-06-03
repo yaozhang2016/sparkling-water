@@ -19,10 +19,12 @@ package org.apache.spark.h2o
 
 import java.util.concurrent.atomic.AtomicReference
 
+
 import org.apache.spark._
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.h2o.H2OTypeUtils._
+import org.apache.spark.internal.Logging
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.{H2ORDD, H2OSchemaRDD}
 import org.apache.spark.repl.SparkIMain
@@ -52,7 +54,7 @@ import scala.util.control.NoStackTrace
  */
 class H2OContext (@transient val sparkContext: SparkContext) extends {
     val sparkConf = sparkContext.getConf
-  } with org.apache.spark.Logging
+  } with Logging
   with H2OConf
   with Serializable {
   self =>
@@ -162,12 +164,18 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
 
   /** Initialize Sparkling H2O and start H2O cloud. */
   def start(): H2OContext = {
-    if(!isRunningOnCorrectSpark){
+    if (!isRunningOnCorrectSpark) {
       throw new WrongSparkVersion(s"You are trying to use Sparkling Water built for Spark ${buildSparkMajorVersion}," +
         s" but your $$SPARK_HOME(=${sparkContext.getSparkHome().getOrElse("SPARK_HOME is not defined!")}) property" +
         s" points to Spark of version ${sparkContext.version}. Please ensure correct Spark is provided and" +
         s" re-run Sparkling Water.")
     }
+
+    if (!H2OConf.sparkConfChecked) {
+      log.warn("SparkConf hasn't been checked using H2OConf.checkSparkConf method. Call this method before creating Spark Context" +
+        "in order to enable additional features in Sparkling Water such as REPL.")
+    }
+
     import H2OConf._
     // Setup properties for H2O configuration
     if (!sparkConf.contains(PROP_CLOUD_NAME._1)) {
