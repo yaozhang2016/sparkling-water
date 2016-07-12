@@ -19,8 +19,8 @@ package org.apache.spark.ml.h2o
 
 import org.apache.spark.annotation.Since
 import org.apache.spark.ml.Pipeline.SharedReadWrite
-import org.apache.spark.ml.{PipelineStage, Transformer, PipelineModel, Pipeline}
-import _root_.org.apache.spark.sql.DataFrame
+import org.apache.spark.ml.{Pipeline, PipelineModel, PipelineStage, Transformer}
+import _root_.org.apache.spark.sql.{DataFrame, Dataset}
 import org.apache.spark.ml.util.{Identifiable, MLReadable, MLReader}
 
 /**
@@ -31,7 +31,7 @@ import org.apache.spark.ml.util.{Identifiable, MLReadable, MLReader}
 class H2OPipeline(override val uid: String) extends Pipeline {
   def this() = this(Identifiable.randomUID("pipeline"))
 
-  override def fit(dataset: DataFrame): PipelineModel = {
+  override def fit(dataset: Dataset[_]): PipelineModel = {
     val model = super.fit(dataset)
     val newStages = model.stages.filter(p=> !p.isInstanceOf[OneTimeTransformer])
     new PipelineModel(model.uid,newStages).setParent(model.parent)

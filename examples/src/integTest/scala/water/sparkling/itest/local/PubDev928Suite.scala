@@ -50,7 +50,7 @@ object PubDev928Test extends SparkContextSupport {
     // partitioning dynamically based on available number of CPUs
     println("Number of chunks before query: " + airlinesData.anyVec().nChunks())
     val airlinesTable: RDD[Airlines] = asRDD[Airlines](airlinesData)
-    airlinesTable.toDF.registerTempTable("airlinesTable")
+    airlinesTable.toDF.createOrReplaceTempView("airlinesTable")
 
     val query = "SELECT * FROM airlinesTable WHERE Dest LIKE 'SFO'"
     // Transform result of SQL query directly into H2OFrame, but change number of

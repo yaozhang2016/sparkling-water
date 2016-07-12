@@ -96,8 +96,8 @@ object AirlinesWithWeatherDemo2 extends SparkContextSupport {
 
     implicit val sqlContext = new SQLContext(sc)
     import sqlContext.implicits._ // import implicit conversions
-    flightsToORD.toDF.registerTempTable("FlightsToORD")
-    weatherTable.toDF.registerTempTable("WeatherORD")
+    flightsToORD.toDF.createOrReplaceTempView("FlightsToORD")
+    weatherTable.toDF.createOrReplaceTempView("WeatherORD")
 
     //
     // -- Join both tables and select interesting columns

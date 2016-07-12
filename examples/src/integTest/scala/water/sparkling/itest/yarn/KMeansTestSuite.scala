@@ -86,7 +86,7 @@ object KMeansITest {
     // Run Kmeans in Spark
     val sqlQueryTimer = new water.util.Timer
     val airlinesDF = asDataFrame(airlinesData)(sqlContext)
-    airlinesDF.registerTempTable("airlinesRDD")
+    airlinesDF.createOrReplaceTempView("airlinesRDD")
     val airlinesTable = sqlContext.sql(
       """SELECT Month, DayofMonth, DayOfWeek FROM airlinesRDD"""
     )

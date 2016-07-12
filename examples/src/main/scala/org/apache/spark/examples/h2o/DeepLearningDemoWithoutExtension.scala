@@ -60,7 +60,7 @@ object DeepLearningDemoWithoutExtension extends SparkContextSupport {
 
     val sqlContext = new SQLContext(sc)
     import sqlContext.implicits._ // import implicit conversions
-    airlinesTable.toDF.registerTempTable("airlinesTable")
+    airlinesTable.toDF.createOrReplaceTempView("airlinesTable")
 
     // Select only interesting columns and flights with destination in SFO
     val query = "SELECT * FROM airlinesTable WHERE Dest LIKE 'SFO'"
