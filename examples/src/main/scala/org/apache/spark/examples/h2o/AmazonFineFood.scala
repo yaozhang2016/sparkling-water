@@ -36,7 +36,7 @@ object AmazonFineFood extends SparkContextSupport with ModelMetricsSupport {
     implicit val sqlContext = SQLContext.getOrCreate(sc)
     @transient val hc = H2OContext.getOrCreate(sc)
 
-    val reviews = new H2OFrame(new java.io.File("/Users/michal/Tmp/amazon-fine-foods/Reviews.csv"))
+    val reviews = new H2OFrame(new java.io.File("/Users/vpatryshev/projects/h2o/amazon-fine-foods/Reviews.csv"))
 
     // We do not need redundant data
     reviews.remove("Id").remove
@@ -55,15 +55,26 @@ object AmazonFineFood extends SparkContextSupport with ModelMetricsSupport {
     df.printSchema()
 
     import org.apache.spark.sql.functions._
-    val avgScorePerYear = hc.asH2OFrame(df.groupBy("Year").agg(mean("Score"), count("Score")), "avgScorePerYear")
-    val avgScorePerMonth = hc.asH2OFrame(df.groupBy("Month").agg(mean("Score"), count("Score")), "avgScorePerMonth")
-    val avgScorePerDay = hc.asH2OFrame(df.groupBy("DayOfWeek").agg(mean("Score"), count("Score")), "avgScorePerDay")
+    val d1 = df.rdd.first()
+    val byYear: DataFrame = df.groupBy("Year").agg(mean("Score"), count("Score"))
+    val d2 = byYear.rdd.first()
+    val avgScorePerYear = hc.asH2OFrame(byYear, "avgScorePerYear")
+    println(avgScorePerYear)
+    val byMonth: DataFrame = df.groupBy("Month").agg(mean("Score"), count("Score"))
+    val d3 = byMonth.rdd.first()
+    val avgScorePerMonth = hc.asH2OFrame(byMonth, "avgScorePerMonth")
+    val byDay: DataFrame = df.groupBy("DayOfWeek").agg(mean("Score"), count("Score"))
+    val avgScorePerDay = hc.asH2OFrame(byDay, "avgScorePerDay")
 
+    val reviewSummaries: H2OFrame = reviews('Score, 'Month, 'Day, 'DayOfWeek, 'Summary)
     // Input for sentiment analysis
-    val sentimentDF = hc.asDataFrame(reviews('Score, 'Month, 'Day, 'DayOfWeek, 'Summary))
+    val sentimentDF = hc.asDataFrame(reviewSummaries)
 
     // Transform Score to binary +/- feature - skip neutral reviews
-    val toBinaryScore = udf { score: Byte => if (score < 3.toByte) "negative" else "positive" }
+    val toBinaryScore = udf { score: Byte => {
+      println("Hey, were are in tBS!")
+      if (score < 3.toByte) "negative" else "positive"
+    } }
 
     val toTokens = udf { summary: String =>
       summary.split(",")
@@ -74,17 +85,21 @@ object AmazonFineFood extends SparkContextSupport with ModelMetricsSupport {
     val hashingTF = new HashingTF(4096) // Larger space?
     val toNumericFeatures = udf { terms: Seq[_] => hashingTF.transform(terms) }
 
+    println(s"sDF=${sentimentDF.rdd.first()}")
     // Skip all neutral reviews
     val vectorizedFrame: DataFrame = sentimentDF.where("Score != 3")
       .withColumn("Score", toBinaryScore(col("Score")))
       .withColumn("Summary", toNumericFeatures(toTokens(col("Summary"))))
-
+    println(s"vF=${vectorizedFrame.rdd.first()}")
     val idfModel = new IDF(minDocFreq = 1).fit(vectorizedFrame.select("Summary").map { case Row(v: spark.mllib.linalg.Vector) => v})
     val toIdf = udf { vector: spark.mllib.linalg.Vector => idfModel.transform(vector)}
     val finalFrame: DataFrame = vectorizedFrame.withColumn("Summary", toIdf(col("Summary")))
     finalFrame.printSchema()
+    println(finalFrame.rdd.first)
 
     val p = hc.asH2OFrame(finalFrame, "finalFrame")
+    println(p)
+    val p1 = hc.asH2OFrame(finalFrame, "finalFrame")
     // Cleanup
     reviews.delete()
 
