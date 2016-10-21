@@ -23,6 +23,7 @@ import org.apache.spark.h2o.backends.external.{ExternalReadConverterContext, Ext
 import org.apache.spark.h2o.backends.internal.{InternalReadConverterContext, InternalWriteConverterContext}
 import org.apache.spark.h2o.utils.NodeDesc
 import org.apache.spark.sql.types._
+import water.fvec.Vec
 import water.{DKV, ExternalFrameReader, Key}
 
 import scala.collection.immutable
@@ -152,33 +153,22 @@ object ConverterUtils extends ConverterUtils {
     }
   }
 
-  def prepareExpectedTypes[T: TypeTag](isExternalBackend: Boolean, types: Array[T]): Option[Array[Byte]] =
+  def prepareExpectedTypes(isExternalBackend: Boolean, types: Array[Byte]): Option[Array[Byte]] =
     if(!isExternalBackend){
       None
     }else {
-      typeOf[T] match {
-        case t if t =:= typeOf[DataType] =>
-          Some(types.map {
-            case ByteType => ExternalFrameReader.EXPECTED_INT
-            case ShortType => ExternalFrameReader.EXPECTED_INT
-            case IntegerType => ExternalFrameReader.EXPECTED_INT
-            case LongType => ExternalFrameReader.EXPECTED_INT
-            case FloatType => ExternalFrameReader.EXPECTED_INT
-            case DoubleType => ExternalFrameReader.EXPECTED_DOUBLE
-            case BooleanType => ExternalFrameReader.EXPECTED_INT
-            case StringType => ExternalFrameReader.EXPECTED_STRING
-            case TimestampType => ExternalFrameReader.EXPECTED_INT
-          })
-        case t if t =:= typeOf[Class[_]] =>
-          Some(types.map {
-            case q if q == classOf[Integer] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[java.lang.Long] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[java.lang.Double] => ExternalFrameReader.EXPECTED_DOUBLE
-            case q if q == classOf[java.lang.Float] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[java.lang.Boolean] => ExternalFrameReader.EXPECTED_INT
-            case q if q == classOf[String] => ExternalFrameReader.EXPECTED_STRING
-          })
-      }
+      Some(types.map {
+        case  => ExternalFrameReader.EXPECTED_INT
+        case ShortType => ExternalFrameReader.EXPECTED_INT
+        case IntegerType => ExternalFrameReader.EXPECTED_INT
+        case LongType => ExternalFrameReader.EXPECTED_INT
+        case FloatType => ExternalFrameReader.EXPECTED_INT
+        case DoubleType => ExternalFrameReader.EXPECTED_DOUBLE
+        case BooleanType => ExternalFrameReader.EXPECTED_INT
+        case StringType => ExternalFrameReader.EXPECTED_STRING
+        case TimestampType => ExternalFrameReader.EXPECTED_INT
+      })
+
     }
 }
 

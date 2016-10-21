@@ -173,7 +173,7 @@ case class ProductMember(name: String, typeName: NameOfType) {
   override def toString = s"$name: $typeName"
 }
 
-case class ProductType(members: Array[ProductMember]) {
+case class ProductType(members: Array[ProductMember], types: Array[Class[_]]) {
   lazy val memberNames = members map (_.name)
   // We keep names, because of a Scala 10.1 bug that does not allow to serialize TypeTags.
   lazy val memberTypeNames = members map (_.typeName)
@@ -188,7 +188,7 @@ case class ProductType(members: Array[ProductMember]) {
 object ProductType {
   def create[A <: Product: TypeTag: ClassTag]: ProductType = {
     val members = productMembers[A]
-
-    new ProductType(members)
+    val types = ReflectionUtils.types(typeOf[A])
+    new ProductType(members, types)
   }
 }

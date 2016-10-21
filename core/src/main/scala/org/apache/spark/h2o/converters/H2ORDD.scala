@@ -57,7 +57,7 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
   val colNamesInFrame = frame.names()
 
   // Check that H2OFrame & given Scala type are compatible
-  if (!productType.isSingleton) {
+  if (!productType.isSingleton) { // Unnecessary check
     val problems = productType.members.filter { m => frame.find(m.name) == -1 } mkString ", "
 
     if (problems.nonEmpty) {
@@ -66,9 +66,7 @@ class H2ORDD[A <: Product: TypeTag: ClassTag, T <: Frame] private(@(transient @p
     }
   }
 
-
-  val types = ReflectionUtils.types(typeOf[A])
-  override val expectedTypes: Option[Array[Byte]] = ConverterUtils.prepareExpectedTypes(isExternalBackend, types)
+  override val expectedTypes: Option[Array[Byte]] = ConverterUtils.prepareExpectedTypes(isExternalBackend, productType.types)
 
   /**
     * :: DeveloperApi ::
