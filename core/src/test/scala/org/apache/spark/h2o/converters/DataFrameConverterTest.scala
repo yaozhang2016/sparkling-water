@@ -545,7 +545,7 @@ class DataFrameConverterTest extends FunSuite with SharedSparkTestContext {
 
   def makeH2OFrame[T: ClassTag](fname: String, colNames: Array[String], chunkLayout: Array[Long],
                                  data: Array[Array[T]], h2oType: Byte, colDomains: Array[Array[String]] = null): H2OFrame = {
-    var f: Frame = new Frame(Key.make(fname))
+    var f: Frame = new Frame(Key.make[Frame](fname))
     FrameUtils.preparePartialFrame(f,colNames)
     f.update()
 
