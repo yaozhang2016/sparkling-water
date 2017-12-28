@@ -17,15 +17,18 @@
 
 package org.apache.spark.h2o.utils
 
-import org.apache.spark.h2o.WrongSparkVersion
-import org.apache.spark.internal.Logging
 import org.apache.spark.SparkContext
-import language.postfixOps
+import org.apache.spark.h2o.BuildInfo
+import org.apache.spark.internal.Logging
+import water.fvec.Frame
+import water.util.Log
+
+import scala.language.postfixOps
 
 /**
   * Support methods for H2OContext.
   */
-private[spark] trait H2OContextUtils extends Logging{
+private[spark] trait H2OContextUtils extends Logging {
 
   /**
     * Open browser for given address.
@@ -56,34 +59,22 @@ private[spark] trait H2OContextUtils extends Logging{
     * executes for example spark-shell command with sparkling water assembly jar passed as --jars and initiates H2OContext.
     * (Because in that case no check for correct Spark version has been done so far.)
     */
-  def isRunningOnCorrectSpark(sc: SparkContext) = sc.version.startsWith(buildSparkMajorVersion)
+  def isRunningOnCorrectSpark(sc: SparkContext) = sc.version.startsWith(BuildInfo.buildSparkMajorVersion)
 
 
-  /**
-    * Returns Major Spark version for which is this version of Sparkling Water designated.
-    *
-    * For example, for 1.6.1 returns 1.6
-    */
-  def buildSparkMajorVersion = {
-    val VERSION_FILE: String = "/spark.version"
-    val stream = getClass.getResourceAsStream(VERSION_FILE)
-    
-    stream match {
-      case null => throw new WrongSparkVersion(s"Unknown spark version: $VERSION_FILE missing")
-      case s => try {
-        val version = scala.io.Source.fromInputStream(s).mkString
+  def withConversionDebugPrints[R <: Frame](sc: SparkContext, conversionName: String, block: => R): R = {
+    val propName = "spark.h2o.measurements.timing"
+    val performancePrintConf = sc.getConf.getOption(propName).orElse(sys.props.get(propName))
 
-        if (version.count('.'==) <= 1) {
-          // e.g., 1.6 or "new"
-          version
-        } else {
-          // 1.4
-          version.substring(0, version.lastIndexOf('.'))
-        }
-      } catch {
-        case x: Exception => throw new WrongSparkVersion(s"Failed to read spark version from  $VERSION_FILE: ${x.getMessage}")
-      }
+    if (performancePrintConf.nonEmpty && performancePrintConf.get.toBoolean) {
+      val t0 = System.nanoTime()
+      val result = block
+      val t1 = System.nanoTime()
+      Log.info(s"Elapsed time of the ${conversionName} conversion into H2OFrame ${result._key}: " + (t1 - t0) / 1000 + " millis")
+      result
+    } else {
+      block
     }
-    
   }
+
 }

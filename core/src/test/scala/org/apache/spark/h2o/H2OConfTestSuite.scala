@@ -17,6 +17,7 @@
 package org.apache.spark.h2o
 
 import org.apache.spark.h2o.utils.SparkTestContext
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -49,13 +50,13 @@ class H2OConfTestSuite extends FunSuite
       .set("spark.ext.h2o.client.web.port", "13321")
       .set("spark.ext.h2o.dummy.rdd.mul.factor", "2")
 
-    sc = new SparkContext("local", "test-local", sparkConf)
+    val spark = SparkSession.builder().master("local").appName("test-local").config(sparkConf).getOrCreate()
 
     // We don't need to have H2OContext here started and since it has private constructor
     // and getOrCreate methods automatically start H2OContext, we use a little bit of reflection
-    val ctor = classOf[H2OContext].getDeclaredConstructor(classOf[SparkContext], classOf[H2OConf])
+    val ctor = classOf[H2OContext].getDeclaredConstructor(classOf[SparkSession], classOf[H2OConf])
     ctor.setAccessible(true)
-    hc = ctor.newInstance(sc, new H2OConf(sc))
+    val hc = ctor.newInstance(spark, new H2OConf(spark).setNumOfExternalH2ONodes(1))
     val conf = hc.getConf
 
     // Test passed values
@@ -77,6 +78,6 @@ class H2OConfTestSuite extends FunSuite
     assert(conf.clientWebPort == 13321)
     assert(conf.drddMulFactor == 2)
 
-    resetContext()
+    resetSparkContext()
   }
 }

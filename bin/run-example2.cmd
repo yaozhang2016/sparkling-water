@@ -4,7 +4,9 @@ rem Top-level directory for this product
 set TOPDIR=%~dp0..
 call %TOPDIR%\bin\sparkling-env.cmd
 rem Verify there is Spark installation
-call :checkSparkHome
+call %LIBSW% checkSparkHome
+call %LIBSW% checkSparkVersion
+call %LIBSW% checkFatJarExists
 
 rem Example prefix
 set PREFIX=org.apache.spark.examples.h2o
@@ -25,7 +27,7 @@ if "%~1" neq "" (
 )
 
 if not defined MASTER (
-set EXAMPLE_MASTER=local-cluster[3,2,1024]
+set EXAMPLE_MASTER=%DEFAULT_MASTER%
 ) else (
 set EXAMPLE_MASTER=%MASTER%
 )
@@ -36,7 +38,7 @@ set EXAMPLE_DEPLOY_MODE=client
 set EXAMPLE_DEPLOY_MODE=%DEPLOY_MODE%
 )
 if not defined DRIVER_MEMORY (
-set EXAMPLE_DRIVER_MEMORY=1G
+set EXAMPLE_DRIVER_MEMORY=%DEFAULT_DRIVER_MEMORY%
 ) else (
 set EXAMPLE_DRIVER_MEMORY=%DRIVER_MEMORY%
 )
@@ -56,50 +58,16 @@ echo ---------
 
 set SPARK_PRINT_LAUNCH_COMMAND=1
 set VERBOSE=--verbose
-if "%EXAMPLE_MASTER%" == "yarn-client" (
-   goto :withoutdeploymode
-) else (
-if "%EXAMPLE_MASTER%" == "yarn-cluster" (
-   goto :withoutdeploymode
-) else (
-   goto :withdeploymode
-)
-)
-:withoutdeploymode
-cd %TOPDIR%
- %SPARK_HOME%/bin/spark-submit ^
- --class %EXAMPLE% ^
- --master %EXAMPLE_MASTER% ^
- --driver-memory %EXAMPLE_DRIVER_MEMORY% ^
- --driver-java-options "%EXAMPLE_H2O_SYS_OPS%" ^
- --conf spark.driver.extraJavaOptions="-XX:MaxPermSize=384m" ^
- %VERBOSE% ^
- %TOPDIR%/assembly/build/libs/%FAT_JAR% ^
- %*
-exit /b %ERRORLEVEL%
 
-:withdeploymode
-cd %TOPDIR%
- %SPARK_HOME%/bin/spark-submit ^
+call %SPARK_HOME%/bin/spark-submit2.cmd ^
  --class %EXAMPLE% ^
  --master %EXAMPLE_MASTER% ^
  --driver-memory %EXAMPLE_DRIVER_MEMORY% ^
  --driver-java-options "%EXAMPLE_H2O_SYS_OPS%" ^
  --deploy-mode %EXAMPLE_DEPLOY_MODE% ^
- --conf spark.driver.extraJavaOptions="-XX:MaxPermSize=384m" ^
  %VERBOSE% ^
- %TOPDIR%/assembly/build/libs/%FAT_JAR% ^
+ %FAT_JAR_FILE% ^
  %*
 exit /b %ERRORLEVEL%
-
 rem end of main script
-
-rem define functions
-:checkSparkHome
-rem Example class prefix
-if not exist "%SPARK_HOME%\" (
-   echo Please setup SPARK_HOME variable to your Spark installation!
-   exit /b -1
-)
-exit /b 0
 

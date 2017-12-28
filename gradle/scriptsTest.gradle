@@ -2,13 +2,6 @@
 // Script tests support
 //
 
-idea {
-    module {
-        jdkName='inheried'
-        testSourceDirs += file('src/scriptsTest/scala')
-    }
-}
-
 sourceSets {
     scriptsTest {
         scala.srcDir file('src/scriptsTest/scala')
@@ -28,7 +21,8 @@ configurations {
 task scriptsTest(type: Test) {
     group = 'Verification'
     description = 'Runs all scripts tests'
-    testClassesDir = sourceSets.scriptsTest.output.classesDir
+
+    testClassesDirs = sourceSets.scriptsTest.output.classesDirs
     classpath = sourceSets.scriptsTest.runtimeClasspath
 
     // Also setup expected Scala version for Spark launcher

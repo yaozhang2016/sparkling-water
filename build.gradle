@@ -2,6 +2,7 @@
 // Sparkling Water build file.
 // This is a multi-module build file.
 //
+apply plugin: 'base'
 
 // For multiproject setup we have to apply release plugin here (we share same release number cross all modules)
 if (project.hasProperty("doRelease")) {
@@ -18,12 +19,13 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.0'
         classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.10:0.8.2'
         classpath 'com.bmuschko:gradle-nexus-plugin:2.3.1'
-        classpath 'net.researchgate:gradle-release:2.0.2'
+        classpath 'net.researchgate:gradle-release:2.4.1'
         classpath 'com.adaptc.gradle:nexus-workflow:0.6'
         classpath 'com.bmuschko:gradle-docker-plugin:2.6.5'
+        classpath 'com.netflix.nebula:gradle-lint-plugin:latest.release'
     }
 }
 
@@ -36,7 +38,8 @@ ext {
       project(':sparkling-water-repl'),
       project(':sparkling-water-core'),
       project(':sparkling-water-examples'),
-      project(':sparkling-water-ml')
+      project(':sparkling-water-ml'),
+      project(':sparkling-water-package')
     ]
     // Project with integration tests
     integTestProjects = [
@@ -50,6 +53,7 @@ ext {
       project(':sparkling-water-examples'),
       project(':sparkling-water-ml'),
       project(':sparkling-water-app-streaming'),
+      project(':sparkling-water-package')
     ]
     // Python projects
     pythonProjects = [
@@ -68,6 +72,9 @@ configure(allprojects) { project ->
     apply plugin: 'idea'
     apply plugin: 'eclipse'
     apply from: "$rootDir/gradle/artifacts.gradle"
+    apply plugin: 'nebula.lint'
+    gradleLint.rules = ['all-dependency']
+    gradleLint.alwaysRun = false // Run linter manually
 
     // Version of main components
     ext {
@@ -80,13 +87,7 @@ configure(allprojects) { project ->
       junitVersion       = '4.11'
     }
 }
-idea {
-    module {
-        inheritOutputDirs = false
-        outputDir = file('build/main')
-        testOutputDir = file('build/test')
-    }
-}
+
 // 
 // Common configuration for all subprojects
 //
@@ -96,7 +97,7 @@ configure(subprojects) { project ->
 
     repositories {
         // Should be enabled only in development mode
-        if (h2oBuild == '99999' || project.hasProperty('useMavenLocal')) {
+        if (h2oBuild == '99999' || project.hasProperty('useMavenLocal') || h2oBuild.endsWith("-SNAPSHOT")) {
             mavenLocal()
         }
 
@@ -151,11 +152,13 @@ task buildSparklingWaterDist(type: Exec) {
 task dist(dependsOn: buildSparklingWaterDist)
 
 task wrapper(type: Wrapper) {
-  gradleVersion = '2.14'
+  gradleVersion = '4.2.1'
 }
 
-task clean(group: "Build tasks", description: "Clean up the project", type: Delete) {
-    delete file("build/")
-    delete file("h2ologs/")
-    delete file("null/")
+clean.doFirst {
+  delete file("build/")
+  delete file("h2ologs/")
+  delete file("null/")
+  delete file("metastore_db/")
 }
+

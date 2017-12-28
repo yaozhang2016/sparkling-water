@@ -16,16 +16,17 @@
 */
 package water.support
 
-import java.io.{FileOutputStream, File, InputStream, OutputStream}
+import java.io._
 import java.net.URI
 
 import hex.Model
+import hex.genmodel.{ModelMojoReader, MojoModel, MojoReaderBackendFactory}
 import water.persist.Persist
-import water.{AutoBuffer, H2O, Keyed, Key}
+import water.{AutoBuffer, H2O, Key, Keyed}
 
 trait ModelSerializationSupport {
 
-  def exportH2OModel(model : Model[_,_,_], destination: URI): URI = {
+  def exportH2OModel(model: Model[_, _, _], destination: URI): URI = {
     val modelKey = model._key.asInstanceOf[Key[_ <: Keyed[_ <: Keyed[_ <: AnyRef]]]]
     val p: Persist = H2O.getPM.getPersistForURI(destination)
     val os: OutputStream = p.create(destination.toString, true)
@@ -34,23 +35,60 @@ trait ModelSerializationSupport {
     destination
   }
 
-  def loadH2OModel[M <: Model[_, _, _]](source: URI) : M = {
+  def loadH2OModel[M <: Model[_, _, _]](source: URI): M = {
     val p: Persist = H2O.getPM.getPersistForURI(source)
     val is: InputStream = p.open(source.toString)
     Keyed.readAll(new AutoBuffer(is)).asInstanceOf[M]
   }
 
-  def exportPOJOModel(model : Model[_, _,_], destination: URI): URI = {
-    val destFile = new File(destination)
-    val fos = new FileOutputStream(destFile)
+
+  def exportPOJOModel(model: Model[_, _, _], destination: URI): URI = {
+    val p: Persist = H2O.getPM.getPersistForURI(destination)
+    val os: OutputStream = p.create(destination.toString, true)
     val writer = new model.JavaModelStreamWriter(false)
-    try {
-      writer.writeTo(fos)
-    } finally {
-      fos.close()
-    }
+    writer.writeTo(os)
+    os.close()
     destination
+  }
+
+  def exportMOJOModel(model: Model[_, _, _], destination: URI): URI = {
+    val p: Persist = H2O.getPM.getPersistForURI(destination)
+    val os: OutputStream = p.create(destination.toString, true)
+    model.getMojo.writeTo(os)
+    destination
+  }
+
+  def loadMOJOModel(source: URI): MojoModel = {
+    hex.genmodel.MojoModel.load(source.getPath)
   }
 }
 
-object ModelSerializationSupport extends ModelSerializationSupport
+object ModelSerializationSupport extends ModelSerializationSupport {
+
+  def getMojo(model: Model[_, _, _]): (MojoModel, Array[Byte]) = {
+    val mojoData = getMojoData(model)
+    val bais = new ByteArrayInputStream(mojoData)
+    val reader = MojoReaderBackendFactory.createReaderBackend(bais, MojoReaderBackendFactory.CachingStrategy.MEMORY)
+    (ModelMojoReader.readFrom(reader), mojoData)
+  }
+
+  def getMojoModel(model: Model[_, _, _]) = {
+    val mojoData = getMojoData(model)
+    val bais = new ByteArrayInputStream(mojoData)
+    val reader = MojoReaderBackendFactory.createReaderBackend(bais, MojoReaderBackendFactory.CachingStrategy.MEMORY)
+    ModelMojoReader.readFrom(reader)
+  }
+
+  def getMojoModel(mojoData: Array[Byte]) = {
+    val is = new ByteArrayInputStream(mojoData)
+    val reader = MojoReaderBackendFactory.createReaderBackend(is, MojoReaderBackendFactory.CachingStrategy.MEMORY)
+    ModelMojoReader.readFrom(reader)
+  }
+
+  def getMojoData(model: Model[_, _, _]) = {
+    val baos = new ByteArrayOutputStream()
+    model.getMojo.writeTo(baos)
+    baos.toByteArray
+  }
+
+}

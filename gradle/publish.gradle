@@ -1,12 +1,24 @@
 // Nexus plugin for releasing https://github.com/bmuschko/gradle-nexus-plugin
 apply plugin: 'com.bmuschko.nexus'
 
-task mappings << {
-        println conf2ScopeMappings.mappings
-        poms.each { pom -> 
-           pom.writeTo("/tmp/x"+project.name)
-        }
+task mappings {
+  doLast {
+    println conf2ScopeMappings.mappings
+    poms.each { pom ->
+      pom.writeTo("/tmp/x" + project.name)
+    }
+  }
 }
+// for publishing to maven local
+apply plugin: 'maven-publish'
+publishing {
+  publications {
+    mavenJava(MavenPublication) {
+      from components.java
+    }
+  }
+}
+
 
 modifyPom {
     project {
@@ -21,7 +33,7 @@ modifyPom {
         url  = 'http://h2o.ai/'
       }
 
-      // H2O licensing 
+      // H2O licensing
       licenses {
         license {
           name 'The Apache Software License, Version 2.0'

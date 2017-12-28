@@ -2,15 +2,45 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 
 def getOsSpecificCommandLine(args) {
-    return isWindowsBased() ? ['cmd', '/c'] + args : args
+    return isWindowsBased() ? ['cmd', '/c'] + args : ['/usr/bin/env'] + args
 }
 
 def isWindowsBased(){
     return Os.isFamily(Os.FAMILY_WINDOWS)
 }
 
+def detectBackendClusterMode(defaultBackendMode = "internal") {
+    String mode = [ project.hasProperty("backendMode") ? project["backendMode"] : null,
+                    System.properties["backendMode"],
+                    defaultBackendMode
+    ].find { h -> h!=null } // first match
+    // Return env
+
+    logger.info("* Test will be running in '$mode' cluster mode (configure via property 'backendMode')")
+    return mode
+}
+
+def detectExternalBackendStartMode(defaultMode = "manual") {
+    String mode = [ project.hasProperty("externalBackendStartMode") ? project["externalBackendStartMode"] : null,
+                    System.properties["spark.ext.h2o.external.start.mode"],
+                    defaultMode
+    ].find { h -> h!=null } // first match
+
+    logger.info("* Test on external backend will be running in '$mode' cluster mode (configure via property 'externalBackendStartMode')")
+    return mode
+}
+//
+// Represents location of H2O jar
+//
+def h2oJarLocation() {
+   return "http://h2o-release.s3.amazonaws.com/h2o/${h2oMajorName != "master" ? "rel-${h2oMajorName}" : "master"}/${h2oBuild}/h2o-${h2oMajorVersion}.${h2oBuild}.zip"
+}
+
 // Export methods by turning them into closures
 ext{
     getOsSpecificCommandLine = this.&getOsSpecificCommandLine
     isWindowsBased = this.&isWindowsBased
+    detectBackendClusterMode = this.&detectBackendClusterMode
+    detectExternalBackendStartMode = this.&detectExternalBackendStartMode
+    h2oJarLocation = this.&h2oJarLocation
 }

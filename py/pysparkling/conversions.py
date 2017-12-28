@@ -17,21 +17,23 @@ class FrameConversions:
 
     @staticmethod
     def _as_h2o_frame_from_RDD_Int(h2oContext, rdd, frame_name):
-        return FrameConversions._as_h2o_frame_from_RDD_Long(h2oContext,rdd, frame_name)
+        j_h2o_frame = h2oContext._jhc.asH2OFrameFromRDDInt(rdd._to_java_object_rdd(), frame_name)
+        j_h2o_frame_key = j_h2o_frame.key()
+        return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
 
     @staticmethod
     def _as_h2o_frame_from_RDD_Double(h2oContext, rdd, frame_name):
-        j_h2o_frame = h2oContext._jhc.asH2OFrameFromRDDDouble(rdd._to_java_object_rdd(), frame_name)
+        j_h2o_frame = h2oContext._jhc.asH2OFrameFromPythonRDDDouble(rdd._to_java_object_rdd(), frame_name)
         j_h2o_frame_key = j_h2o_frame.key()
         return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
 
     @staticmethod
     def _as_h2o_frame_from_RDD_Float(h2oContext, rdd, frame_name):
-        return FrameConversions._as_h2o_frame_from_RDD_Double(h2oContext,rdd, frame_name)
+        return FrameConversions._as_h2o_frame_from_RDD_Double(h2oContext, rdd, frame_name)
 
     @staticmethod
     def _as_h2o_frame_from_RDD_Long(h2oContext, rdd, frame_name):
-        j_h2o_frame = h2oContext._jhc.asH2OFrameFromRDDLong(rdd._to_java_object_rdd(), frame_name)
+        j_h2o_frame = h2oContext._jhc.asH2OFrameFromPythonRDDLong(rdd._to_java_object_rdd(), frame_name)
         j_h2o_frame_key = j_h2o_frame.key()
         return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
 
@@ -49,7 +51,7 @@ class FrameConversions:
         # On scala backend, to transform RDD of Product to H2OFrame, we need to know Type Tag.
         # Since there is no alternative for Product class in Python, we first transform the rdd to dataframe
         # and then transform it to H2OFrame.
-        df = h2oContext._ss.createDataFrame(dataframe)
+        df = h2oContext._spark_session.createDataFrame(dataframe)
         j_h2o_frame = h2oContext._jhc.asH2OFrame(df._jdf, frame_name)
         j_h2o_frame_key = j_h2o_frame.key()
         return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)

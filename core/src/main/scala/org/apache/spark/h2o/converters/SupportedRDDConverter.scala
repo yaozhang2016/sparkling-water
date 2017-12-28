@@ -18,6 +18,7 @@
 package org.apache.spark.h2o.converters
 
 import org.apache.spark.h2o._
+import org.apache.spark._
 import org.apache.spark.mllib.regression.LabeledPoint
 
 import scala.language.implicitConversions
@@ -29,15 +30,13 @@ import scala.reflect.runtime.universe._
   * This converter just wraps the existing RDD converters and hides the internal RDD converters
   */
 
-trait SupportedRDDConverter{
+object SupportedRDDConverter {
   /** Transform supported type for conversion to H2OFrame*/
   def toH2OFrame(hc: H2OContext, rdd: SupportedRDD, frameKeyName: Option[String]): H2OFrame = rdd.toH2OFrame(hc, frameKeyName)
 
   /** Transform H2OFrame to RDD */
   def toRDD[A <: Product: TypeTag: ClassTag, T <: Frame](hc: H2OContext, fr: T): H2ORDD[A, T] = ProductRDDConverter.toRDD[A, T](hc, fr)
 }
-
-object SupportedRDDConverter extends SupportedRDDConverter
 
 /**
   * Magnet pattern (Type Class pattern) for conversion from various primitive types to their appropriate H2OFrame using
@@ -127,5 +126,13 @@ private[this] object SupportedRDD {
   }
   implicit def toH2OFrameFromRDDProduct[A <: Product : TypeTag](rdd : RDD[A]): SupportedRDD = new SupportedRDD {
     override def toH2OFrame(hc: H2OContext, frameKeyName: Option[String]): H2OFrame = ProductRDDConverter.toH2OFrame(hc, rdd, frameKeyName)
+  }
+
+  implicit def toH2OFrameFromRDDMLlibVector(rdd: RDD[mllib.linalg.Vector]): SupportedRDD = new SupportedRDD {
+    override def toH2OFrame(hc: H2OContext, frameKeyName: Option[String]): H2OFrame = MLLibVectorConverter.toH2OFrame(hc, rdd, frameKeyName)
+  }
+
+  implicit def toH2OFrameFromRDDmlVector(rdd: RDD[ml.linalg.Vector]): SupportedRDD = new SupportedRDD {
+    override def toH2OFrame(hc: H2OContext, frameKeyName: Option[String]): H2OFrame = MLVectorConverter.toH2OFrame(hc, rdd, frameKeyName)
   }
 }

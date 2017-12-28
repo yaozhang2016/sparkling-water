@@ -1,9 +1,24 @@
 apply plugin: 'scala'
 apply from: "$rootDir/gradle/utils.gradle"
 
+// Monkey patch the scala compile options to make Idea happy
+// See: https://discuss.gradle.org/t/idea-integration-with-scala-plugin-broken-since-gradle-3-0-no-such-property-daemonserver/19159/2
+ScalaCompileOptions.metaClass.daemonServer = true
+ScalaCompileOptions.metaClass.fork = true
+ScalaCompileOptions.metaClass.useAnt = false
+ScalaCompileOptions.metaClass.useCompileDaemon = false
+
 // Activate Zinc compiler and configure scalac
 tasks.withType(ScalaCompile) {
-    scalaCompileOptions.additionalParameters = ['-target:jvm-1.6']
+    scalaCompileOptions.additionalParameters = [
+            "-target:jvm-1.7",
+            "-feature",
+            // enable several optional scala features so Scala knows we use them on purpose
+            "-language:reflectiveCalls",
+            "-language:postfixOps",
+            "-language:existentials",
+            "-language:implicitConversions",
+            ]
 }
 
 project.archivesBaseName = "${project.name}_${scalaBaseVersion}"
@@ -62,6 +77,35 @@ sourceSets {
         }
     }
 }
+
+
+//
+// Initial task checking setup of all properties required
+// by scala tests
+//
+task checkScalaTestEnv {
+    doLast {
+
+        // if the spark.ext.h2o.backend.cluster.mode is set to external, then
+        // we need to have also H2O_EXTENDED_JAR property set in order to be able to perform tests
+        if (detectBackendClusterMode() == "external" && System.getenv("H2O_EXTENDED_JAR") == null) {
+
+            throw new InvalidUserDataException("""When running tests on external H2O cluster, H2O_EXTENDED_JAR property is required.
+
+Please set it, for example as:
+export H2O_EXTENDED_JAR=`./gradlew -q extendJar -PdownloadH2O`
+                                  """)
+        }
+    }
+}
+
+// Override ScalaDoc classpath to look only for classes in the scala output dir preventing several warnings for
+// missing elements since we don't use java source dirs
+scaladoc {
+    classpath = files(project.sourceSets.main.compileClasspath, sourceSets.main.scala.outputDir.absolutePath)
+}
+
+check.dependsOn(checkScalaTestEnv)
 
 // Enable scalastyle
 apply from: "$rootDir/gradle/scalastyle.gradle"

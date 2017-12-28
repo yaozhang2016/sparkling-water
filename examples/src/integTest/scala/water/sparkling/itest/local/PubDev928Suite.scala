@@ -1,5 +1,7 @@
 package water.sparkling.itest.local
 
+import java.io.File
+
 import hex.deeplearning.DeepLearning
 import hex.deeplearning.DeepLearningModel.DeepLearningParameters
 import org.apache.spark.SparkContext
@@ -10,9 +12,10 @@ import org.apache.spark.sql.SparkSession
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
+import water.api.TestUtils
 import water.fvec.H2OFrame
 import water.sparkling.itest.{IntegTestHelper, IntegTestStopper, LocalTest}
-import water.support.SparkContextSupport
+import water.support.{H2OFrameSupport, SparkContextSupport}
 
 
 /**
@@ -43,7 +46,7 @@ object PubDev928Test extends SparkContextSupport with IntegTestStopper {
     implicit val sqlContext = SparkSession.builder().getOrCreate().sqlContext
     import sqlContext.implicits._
 
-    val airlinesData = new H2OFrame(new java.io.File("examples/smalldata/allyears2k_headers.csv.gz"))
+    val airlinesData = new H2OFrame(new File(TestUtils.locate("smalldata/airlines/allyears2k_headers.zip")))
 
     // We need to explicitly repartition data to 12 chunks/partitions since H2O parser handling
     // partitioning dynamically based on available number of CPUs
@@ -62,8 +65,9 @@ object PubDev928Test extends SparkContextSupport with IntegTestStopper {
     val train: H2OFrame = result('Year, 'Month, 'DayofMonth, 'DayOfWeek, 'CRSDepTime, 'CRSArrTime,
       'UniqueCarrier, 'FlightNum, 'TailNum, 'CRSElapsedTime, 'Origin, 'Dest,
       'Distance, 'IsDepDelayed)
-    train.replace(train.numCols() - 1, train.lastVec().toCategoricalVec)
-    train.update()
+    H2OFrameSupport.withLockAndUpdate(train){ fr =>
+      fr.replace(fr.numCols() - 1, fr.lastVec().toCategoricalVec)
+    }
     println(s"Any vec chunk cnt: ${train.anyVec().nChunks()}")
     // Configure Deep Learning algorithm
     val dlParams = new DeepLearningParameters()

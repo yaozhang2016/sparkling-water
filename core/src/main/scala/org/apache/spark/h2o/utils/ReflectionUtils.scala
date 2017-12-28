@@ -27,20 +27,20 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 /**
- * Work with reflection only inside this helper.
- */
+  * Work with reflection only inside this helper.
+  */
 object ReflectionUtils {
   type NameOfType = String
 
-  def fieldNamesOf(t: Type) : Array[String] = {
+  def fieldNamesOf(t: Type): Array[String] = {
     t.members.sorted.collect { case m if !m.isMethod => m.name.toString.trim }.toArray
   }
 
-  def fieldNamesOf[T: TypeTag] : Array[String] = fieldNamesOf(typeOf[T])
+  def fieldNamesOf[T: TypeTag]: Array[String] = fieldNamesOf(typeOf[T])
 
-  def vecTypesOf[T:TypeTag]: Array[VecType] = memberTypesOf[T] map (_.vecType)
+  def vecTypesOf[T: TypeTag]: Array[VecType] = memberTypesOf[T] map (_.vecType)
 
-  def memberTypesOf[T](implicit ttag: TypeTag[T]): Array[SupportedType] =  {
+  def memberTypesOf[T](implicit ttag: TypeTag[T]): Array[SupportedType] = {
     val types: Seq[Type] = listMemberTypes(typeOf[T])
     types map supportedTypeFor toArray
   }
@@ -57,36 +57,38 @@ object ReflectionUtils {
     val TypeRef(_, _, actualTypeArgs) = st
     val attr = st.members.sorted
       .filter(!_.isMethod)
-      .filter( s => names.contains(s.name.toString.trim))
-      .map( s =>
+      .filter(s => names.contains(s.name.toString.trim))
+      .map(s =>
         s.typeSignature.substituteTypes(formalTypeArgs, actualTypeArgs)
       )
     attr
   }
 
-  def productMembers[T:TypeTag]: Array[ProductMember] = {
+  def productMembers[T: TypeTag]: Array[ProductMember] = {
     val st = typeOf[T]
     val formalTypeArgs = st.typeSymbol.asClass.typeParams
     val TypeRef(_, _, actualTypeArgs) = st
     val attr = st.members.sorted
       .filter(!_.isMethod)
-        .map(s => (s.name.toString.trim, s))
-      .map( p =>
-        ProductMember(p._1, supportedTypeFor(p._2.typeSignature.substituteTypes(formalTypeArgs, actualTypeArgs)).toString)
-      )
+      .map(s => (s.name.toString.trim, s))
+      .map { p =>
+        val supportedType = supportedTypeFor(p._2.typeSignature.substituteTypes(formalTypeArgs, actualTypeArgs))
+        ProductMember(p._1, supportedType.toString, supportedType.javaClass)
+      }
     attr toArray
   }
 
   def reflector(ref: AnyRef) = new {
     def getV[T](name: String): T = ref.getClass.getMethods.find(_.getName == name).get.invoke(ref).asInstanceOf[T]
+
     def setV(name: String, value: Any): Unit = ref.getClass.getMethods.find(_.getName == name + "_$eq").get.invoke(ref, value.asInstanceOf[AnyRef])
   }
 
   /** Return API annotation assigned with the given field
     * or null.
     *
-    * @param klazz  class to query
-    * @param fieldName  field name to query
+    * @param klazz     class to query
+    * @param fieldName field name to query
     * @return instance of API annotation assigned with the field or null
     */
   def api(klazz: Class[_], fieldName: String): API = {
@@ -95,24 +97,36 @@ object ReflectionUtils {
 
   import scala.reflect.runtime.universe._
 
-  def supportedTypeOf(value : Any): SupportedType = {
+  def supportedTypeOf(value: Any): SupportedType = {
     value match {
-      case n: Byte => Byte
-      case n: Short => Short
-      case n: Int => Integer
-      case n: Long => Long
-      case n: Float => Float
-      case n: Double => Double
-      case n: Boolean => Boolean
-      case n: String => String
-      case n: java.sql.Timestamp => Timestamp
+      case _: Byte => Byte
+      case _: Short => Short
+      case _: Int => Integer
+      case _: Long => Long
+      case _: Float => Float
+      case _: Double => Double
+      case _: Boolean => Boolean
+      case _: String => String
+      case _: java.sql.Timestamp => Timestamp
+      case _: java.sql.Date => Date
+      case n: DataType => bySparkType(n)
       case q => throw new IllegalArgumentException(s"Do not understand type $q")
     }
   }
 
-  def supportedTypeFor(tpe: Type) : SupportedType = SupportedTypes.byType(tpe)
+  def javaClassOf[T](implicit ttag: TypeTag[T]) = supportedTypeFor(typeOf[T]).javaClass
 
-  def classFor(tpe: Type) : Class[_] = supportedTypeFor(tpe).javaClass
+
+  def javaClassOf(dt: DataType): Class[_] = {
+    dt match {
+      case n if n.isInstanceOf[DecimalType] & n.getClass.getSuperclass != classOf[DecimalType] => Double.javaClass
+      case _ => bySparkType(dt).javaClass
+    }
+  }
+
+  def supportedTypeFor(tpe: Type): SupportedType = SupportedTypes.byType(tpe)
+
+  def classFor(tpe: Type): Class[_] = supportedTypeFor(tpe).javaClass
 
   def vecTypeFor(t: Class[_]): Byte = byClass(t).vecType
 
@@ -121,7 +135,11 @@ object ReflectionUtils {
   def vecTypeOf[T](implicit ttag: TypeTag[T]) = vecTypeFor(typeOf[T])
 
   /** Method translating SQL types into Sparkling Water types */
-  def vecTypeFor(dt : DataType) : Byte = bySparkType(dt).vecType
+  def vecTypeFor(dt: DataType): Byte =
+    dt match {
+      case _: DecimalType => Vec.T_NUM
+      case _ => bySparkType(dt).vecType
+    }
 
   import SupportedTypes._
 
@@ -140,11 +158,11 @@ object ReflectionUtils {
 
   def supportedType(v: Vec): SupportedType = {
     v.get_type() match {
-      case Vec.T_BAD  => Byte // vector is full of NAs, use any type
-      case Vec.T_NUM  => detectSupportedNumericType(v)
-      case Vec.T_CAT  => String
+      case Vec.T_BAD => Byte // vector is full of NAs, use any type
+      case Vec.T_NUM => detectSupportedNumericType(v)
+      case Vec.T_CAT => String
       case Vec.T_UUID => String
-      case Vec.T_STR  => String
+      case Vec.T_STR => String
       case Vec.T_TIME => Timestamp
       case typ => throw new IllegalArgumentException("Unknown vector type " + typ)
     }
@@ -169,7 +187,7 @@ object ReflectionUtils {
 
 import ReflectionUtils._
 
-case class ProductMember(name: String, typeName: NameOfType) {
+case class ProductMember(name: String, typeName: NameOfType, typeClass: Class[_]) {
   override def toString = s"$name: $typeName"
 }
 
@@ -177,6 +195,7 @@ case class ProductType(members: Array[ProductMember]) {
   lazy val memberNames = members map (_.name)
   // We keep names, because of a Scala 10.1 bug that does not allow to serialize TypeTags.
   lazy val memberTypeNames = members map (_.typeName)
+  lazy val memberClasses = members map (_.typeClass)
 
   def arity = members.length
 
@@ -186,9 +205,8 @@ case class ProductType(members: Array[ProductMember]) {
 }
 
 object ProductType {
-  def create[A <: Product: TypeTag: ClassTag]: ProductType = {
+  def create[A <: Product : TypeTag : ClassTag]: ProductType = {
     val members = productMembers[A]
-
     new ProductType(members)
   }
 }

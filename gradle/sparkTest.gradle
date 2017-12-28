@@ -1,9 +1,14 @@
+apply from: "$rootDir/gradle/utils.gradle"
+
 // Setup test environment for Spark
 test {
     // Test environment
+    systemProperty "spark.ext.h2o.backend.cluster.mode", detectBackendClusterMode()
+    systemProperty "spark.ext.h2o.external.start.mode", detectExternalBackendStartMode()
     systemProperty "spark.testing", "true"
     systemProperty "spark.ext.h2o.node.log.dir", new File(project.getBuildDir(), "h2ologs-test/nodes")
     systemProperty "spark.ext.h2o.client.log.dir", new File(project.getBuildDir(), "h2ologs-test/client")
+    systemProperty "spark.test.home", "${sparkHome}"
 
     // Run with assertions ON
     enableAssertions = true
@@ -14,10 +19,7 @@ test {
     // Increase heap size
     maxHeapSize = "4g"
 
-    // Increase PermGen
-    jvmArgs '-XX:MaxPermSize=384m'
-
     // Working dir will be root project
     workingDir = rootDir
-//    testLogging.showStandardStreams = true
+    // testLogging.showStandardStreams = true
 }

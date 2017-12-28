@@ -19,7 +19,7 @@ package org.apache.spark.h2o.converters
 
 import org.apache.spark.SparkContext
 import org.apache.spark.h2o._
-import org.apache.spark.h2o.utils.SharedSparkTestContext
+import org.apache.spark.h2o.utils.SharedH2OTestContext
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
@@ -34,7 +34,7 @@ import scala.reflect.runtime.universe._
  * Testing schema for h2o schema spark dataset transformation.
  */
 @RunWith(classOf[JUnitRunner])
-class DatasetConverterTest extends FunSuite with SharedSparkTestContext with BeforeAndAfterAll {
+class DatasetConverterTest extends FunSuite with SharedH2OTestContext with BeforeAndAfterAll {
 
   import testdata._
 
@@ -74,7 +74,7 @@ class DatasetConverterTest extends FunSuite with SharedSparkTestContext with Bef
 
   lazy val testSourceDatasetWithPartialData = sqlContext.createDataset(samplePartialPeople)
 
-  def testH2oFrametWithPartialData: H2OFrame = {
+  lazy val testH2oFrametWithPartialData: H2OFrame = {
     hc.asH2OFrame(testSourceDatasetWithPartialData)
   }
 
@@ -82,7 +82,9 @@ class DatasetConverterTest extends FunSuite with SharedSparkTestContext with Bef
 
   override def afterAll(): Unit = {
     testH2oFrame.delete()
+    testH2oFrametWithPartialData.delete()
     testSourceDataset.unpersist()
+    super.afterAll()
   }
 
   test("Dataset[SamplePerson] to H2OFrame and back") {
@@ -225,7 +227,7 @@ class DatasetConverterTest extends FunSuite with SharedSparkTestContext with Bef
     sqlContext.createDataset(samplePeople)
   }
 
-  def testH2oFrame: H2OFrame = hc.asH2OFrame(testSourceDataset)
+  lazy val testH2oFrame: H2OFrame = hc.asH2OFrame(testSourceDataset)
 
   def readWholeFrame[T <: Product : TypeTag : ClassTag](frame: H2OFrame) = {
 

@@ -5,10 +5,12 @@ include 'examples'
 // Disable for now
 include 'ml'
 include 'assembly'
+include 'assembly-h2o'
 include 'py'
 include 'repl'
 include 'docker'
 include 'app-streaming'
+include 'package'
 
 // Prefix all projects with sparkling-water name
 rootProject.children.each { project ->

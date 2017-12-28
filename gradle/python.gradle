@@ -28,3 +28,9 @@ build.dependsOn check
 
 check.dependsOn test
 
+//
+// Setup idea project
+//
+if (!project.plugins.hasPlugin('idea')) {
+  apply plugin: 'idea'
+}

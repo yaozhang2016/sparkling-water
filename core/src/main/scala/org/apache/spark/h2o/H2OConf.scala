@@ -18,31 +18,42 @@
 package org.apache.spark.h2o
 
 import org.apache.spark.api.java.JavaSparkContext
+import org.apache.spark.h2o.backends.external.ExternalBackendConf
 import org.apache.spark.h2o.backends.internal.InternalBackendConf
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.repl.h2o.H2OInterpreter
+import org.apache.spark.sql.SparkSession
 
 /**
   * Configuration holder which is representing
   * properties passed from user to Sparkling Water.
   */
-class H2OConf(@transient val sc: SparkContext) extends Logging with InternalBackendConf {
+class H2OConf(val sparkConf: SparkConf) extends Logging with InternalBackendConf with ExternalBackendConf {
 
   /** Support for creating H2OConf in Java environments */
-  def this(jsc: JavaSparkContext) = this(jsc.sc)
-  val sparkConf = sc.getConf
+  def this(jsc: JavaSparkContext) = this(jsc.sc.getConf)
+
+  def this(sc: SparkContext) = this(sc.getConf)
+
+  def this(sparkSession: SparkSession) = this(sparkSession.sparkContext.getConf)
+
   // Precondition
   require(sparkConf != null, "Spark conf was null")
 
   /** Copy this object */
   override def clone: H2OConf = {
-    new H2OConf(sc).setAll(getAll)
+    new H2OConf(sparkConf).setAll(getAll)
   }
 
   /** Set a configuration variable. */
   def set(key: String, value: String): H2OConf = {
     sparkConf.set(key, value)
+    this
+  }
+
+  def set(key: String, value: Boolean): H2OConf = {
+    sparkConf.set(key, value.toString)
     this
   }
 
@@ -86,7 +97,14 @@ class H2OConf(@transient val sc: SparkContext) extends Logging with InternalBack
   /** Get a parameter as a boolean, falling back to a default if not set */
   def getBoolean(key: String, defaultValue: Boolean): Boolean = sparkConf.getBoolean(key, defaultValue)
 
-  override def toString: String = internalConfString
+
+  override def toString: String = {
+    if (runsInExternalClusterMode) {
+      externalConfString
+    } else {
+      internalConfString
+    }
+  }
 }
 
 object H2OConf {

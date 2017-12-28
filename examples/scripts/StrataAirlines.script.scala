@@ -18,6 +18,8 @@ import water.Key
 import java.io.File
 
 import water.support.SparkContextSupport.addFiles
+import water.support.H2OFrameSupport._
+import water.api.TestUtils
 
 // Create SQL support
 implicit val sqlContext = spark.sqlContext
@@ -28,13 +30,11 @@ val h2oContext = H2OContext.getOrCreate(sc)
 import h2oContext._
 import h2oContext.implicits._
 
-// Register files to SparkContext
-addFiles(sc,
-  "examples/smalldata/year2005.csv.gz",
-  "examples/smalldata/Chicago_Ohare_International_Airport.csv")
+// Register relevant files to Spark Context
+addFiles(sc, TestUtils.locate("smalldata/chicago/Chicago_Ohare_International_Airport.csv"))
 
 // Import all year airlines data into H2O
-val airlinesData = new H2OFrame(new File(SparkFiles.get("year2005.csv.gz")))
+val airlinesData = new H2OFrame(new File(TestUtils.locate("smalldata/airlines/year2005.csv.gz")))
 
 // Import weather data into Spark
 val wrawdata = sc.textFile(SparkFiles.get("Chicago_Ohare_International_Airport.csv"),8).cache()
@@ -63,8 +63,7 @@ val bigTable = sqlContext.sql(
 
 
 val trainFrame:H2OFrame = bigTable
-trainFrame.replace(19, trainFrame.vec("IsDepDelayed").toCategoricalVec)
-trainFrame.update()
+withLockAndUpdate(trainFrame){ fr => fr.replace(19, fr.vec("IsDepDelayed").toCategoricalVec)}
 
 // Run deep learning to produce model estimating arrival delay
 import _root_.hex.deeplearning.DeepLearning
@@ -87,13 +86,13 @@ import _root_.hex.glm.GLMModel.GLMParameters.Family
 import _root_.hex.glm.GLM
 import _root_.hex.glm.GLMModel.GLMParameters
 val glmParams = new GLMParameters(Family.binomial)
-glmParams._train = bigTable
+glmParams._train = trainFrame
 glmParams._response_column = 'IsDepDelayed
 glmParams._alpha = Array[Double](0.5)
 val glm = new GLM(glmParams, Key.make("glmModel.hex"))
 val glmModel = glm.trainModel().get()
 
 // Use model to estimate delay on training data
-val predGLMH2OFrame = glmModel.score(bigTable)('predict)
-val predGLMFromModel = asRDD[DoubleHolder](predictionH2OFrame).collect.map(_.result.getOrElse(Double.NaN))
+val predGLMH2OFrame = glmModel.score(trainFrame)('predict)
+val predGLMFromModel = asRDD[DoubleHolder](predGLMH2OFrame).collect.map(_.result.getOrElse(Double.NaN))
 
